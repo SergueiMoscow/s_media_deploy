@@ -1,0 +1,41 @@
+---
+- name: Настройка Nginx для front-end проекта s_media (Vue.js)
+  hosts: servers
+  become: yes
+  vars:
+    nginx_conf_dir: "/etc/nginx/sites-available"
+    nginx_conf_link_dir: "/etc/nginx/sites-enabled"
+    server_name: "photo.b-site.ru"  # Используйте ваше доменное имя
+    front_end_port: "3000"  # Порт, на котором запущен фронтенд
+
+  tasks:
+    - name: Установка Nginx
+      apt:
+        name: nginx
+        state: latest
+        update_cache: yes
+
+    - name: Удаление конфигурации Nginx по умолчанию
+      file:
+        path: "{{ nginx_conf_link_dir }}/default"
+        state: absent
+
+    - name: Создание конфигурационного файла Nginx для s_media_front
+      template:
+        src: s_media_front.conf.j2
+        dest: "{{ nginx_conf_dir }}/s_media_front.conf"
+
+    - name: Создание символьной ссылки для конфигурации Nginx
+      file:
+        src: "{{ nginx_conf_dir }}/s_media_front.conf"
+        dest: "{{ nginx_conf_link_dir }}/s_media_front.conf"
+        state: link
+
+    - name: Проверка конфигурации Nginx
+      command: nginx -t
+
+    - name: Перезапуск Nginx для применения новой конфигурации
+      systemd:
+        name: nginx
+        state: restarted
+

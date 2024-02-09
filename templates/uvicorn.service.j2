@@ -4,10 +4,10 @@ Description=Uvicorn instance to serve s_media API backend project
 After=network.target
 
 [Service]
-User=sergey
+User=root
 Group=root
 WorkingDirectory=/var/www/s_media_api
-ExecStart={{ poetry_env_path.stdout }}/bin/uvicorn s_media_api.asgi:application --host 0.0.0.0 --port 8000
+ExecStart={{ poetry_env_path.stdout }}/bin/uvicorn django_app.asgi:application --host 0.0.0.0 --port 8000
 Restart=always
 
 [Install]

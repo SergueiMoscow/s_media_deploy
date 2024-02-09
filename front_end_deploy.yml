@@ -1,0 +1,45 @@
+---
+- name: Deploy front-end s_media (Vue.js)
+  hosts: servers
+  become: yes  # Если нужны права root
+  vars:
+    git_repo: "https://github.com/SergueiMoscow/s_media_front"
+    app_directory: "/var/www/s_media_front"
+    node_version: "20.x"
+
+  tasks:
+    - name: Обновить кеш репозиториев (apt)
+      apt:
+        update_cache: yes
+
+    - name: Установить зависимости для сборки
+      apt:
+        name: ["git", "nodejs", "npm"]
+        state: latest
+
+    - name: Клонировать репозиторий с исходным кодом Vue.js
+      git:
+        repo: "{{ git_repo }}"
+        dest: "{{ app_directory }}"
+        clone: yes
+        force: yes
+
+    - name: Установка PM2 глобально
+      npm:
+        name: pm2
+        global: yes
+      become: yes
+
+    - name: Установить зависимости проекта
+      npm:
+        path: "{{ app_directory }}"
+
+    - name: Собрать Vue.js проект
+      npm:
+        path: "{{ app_directory }}"
+        ci: yes # Больше подходит для продакшен сборки
+
+    - name: запуск Vue.js проекта с помощью PM2
+      shell: pm2 start npm --name "s_media_front" -- run start
+      args:
+        chdir: "{{ app_directory }}"

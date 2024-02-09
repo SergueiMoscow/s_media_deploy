@@ -1,6 +1,6 @@
 # Начальный скрипт создания конфигурации
 # checked ok
-- hosts: servers
+- hosts: no_root
   become: yes
   vars_files:
     - s_media_secrets.yaml
@@ -8,14 +8,6 @@
   vars:
     postgresql_version: 14
   tasks:
-
-  - name: Creating user "{{ uusername }}" with admin access
-    user: 
-      name: "{{ uusername }}"
-      password: "{{ upassword | password_hash('sha512') }}"
-      shell: /bin/bash
-      groups: "sudo"
-      append: yes
 
   - name: Установить необходимые пакеты
     apt:
@@ -45,14 +37,14 @@
       path: /etc/postgresql/14/main/pg_hba.conf
       regexp: '^local\s+all\s+postgres\s+peer$'
       line: 'local   all    postgres                     trust'
-      # validate: '/usr/lib/postgresql/14/bin/pg_ctl -D %s reload'
+    notify: restart postgresql
 
   - name: Изменить метод аутентификации на md5 для всех
     lineinfile:
       path: /etc/postgresql/{{ postgresql_version }}/main/pg_hba.conf
       regexp: '^local\s+all\s+all\s+peer$'
       line: 'local   all    all                     md5'
-      # validate: '/usr/lib/postgresql/14/bin/pg_ctl -D %s reload'
+    notify: restart postgresql
 
   - name: Configure PostgreSQL. Set listen_addresses.
     lineinfile:
@@ -60,14 +52,19 @@
       regexp: 'listen_addresses ='
       line: "listen_addresses = '*'"
       state: present
-    notify: перезапустить postgresql
+    notify: restart postgresql
+
+  - name: restart postgresql
+    service:
+      name: postgresql
+      state: restarted
 
   - name: Create a new database with name "{{ db_name1 }}" and specific encoding and locale # settings
     community.postgresql.postgresql_db:
       name: "{{ db_name1 }}"
       encoding: UTF-8
       template: template0
-    notify: перезапустить postgresql
+    notify: restart postgresql
 
   - name: Create a new database with name "{{ db_name2 }}" and specific encoding and locale # settings
     community.postgresql.postgresql_db:
@@ -119,7 +116,7 @@
       source: 0.0.0.0/0
       keep_comments_at_rules: true
       comment: "added with ansible"
-    notify: перезапустить postgresql
+    notify: restart postgresql
 
   - name: Check PostgreSQL schema "{{ db_schema1 }}" of "{{ db_name1 }}"
     postgresql_schema:
@@ -134,7 +131,7 @@
       owner: "{{ db_user }}"
 
   handlers:
-  - name: перезапустить postgresql
+  - name: restart postgresql
     service:
       name: postgresql
       state: restarted

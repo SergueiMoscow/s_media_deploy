@@ -1,13 +1,14 @@
-- hosts: servers
+- hosts: no_root
   become: yes
   vars_files:
     - s_media_secrets.yaml
 
   tasks:
-  - name: Копирование конфига .env (API)
-    template:
-      src: templates/.env  # путь к шаблону на вашем локальном компьютере
-      dest: /var/www/s_media_api/.env  # путь на удаленном сервере
+
+  - name: Get stuff from git
+    git:
+      repo: https://github.com/SergueiMoscow/s_media_api.git
+      dest: "{{ backend }}"
 
   - name: Get Poetry virtualenv path
     shell: ~/.local/bin/poetry env info -p
@@ -22,3 +23,10 @@
       project_path: "{{ backend }}"
       settings: "django_app.settings"
       virtualenv: "{{ poetry_env_path.stdout }}"
+    notify: restart uvicorn
+
+  handlers:
+    - name: restart uvicorn
+      systemd:
+        name: s_media_api
+        state: restarted
