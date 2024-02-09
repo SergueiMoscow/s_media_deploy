@@ -1,0 +1,26 @@
+---
+- name: Install Vue.js
+  hosts: no_root
+  gather_facts: false
+  become: true
+  vars_files:
+    - s_media_secrets.yaml
+
+  tasks:
+    - name: Remove Node.js
+      apt:
+        name: nodejs
+        state: absent
+    - name: Add NodeSource Node.js 20.x repo
+      shell: |
+        curl -sL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+
+    - name: Install node v20
+      apt:
+        name: nodejs
+        state: present
+
+    - name: Install @vue/cli
+      npm:
+        name: "@vue/cli"
+        global: true
