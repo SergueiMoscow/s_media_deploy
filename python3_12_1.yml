@@ -1,0 +1,48 @@
+- hosts: servers
+  become: true
+  vars_files:
+    - s_media_secrets.yaml
+    
+  tasks:
+
+  - name: Установить необходимые пакеты для  установки python 3.12
+    apt:
+      name:
+        - software-properties-common
+      state: present
+      update_cache: yes
+
+  - name: Добавить репозиторий для python 3.12
+    ansible.builtin.apt_repository:
+      repo: ppa:deadsnakes/ppa
+
+  - name: Установка python 3.12
+    apt:
+      name:
+        - python3.10-venv
+        - python3.12
+        - python3.12-distutils
+# for gcc error on install psycopg2
+        - python3.12-dev
+        - build-essential
+        - gcc
+        - python3-pip # Необходимо для работы pipx и pip
+      state: present
+
+  - name: Установка python3-venv для Python 3.12
+    apt:
+      name: python3.12-venv
+      state: present
+
+  - name: Установка pipx для изоляции poetry
+    ansible.builtin.pip:
+      name: pipx
+      executable: pip3
+
+  - name: Установить poetry с помощью pipx
+    ansible.builtin.shell:
+      cmd: pipx install --python /usr/bin/python3.12 poetry
+
+  # - name: Установка Python 3.12 для poetry среды
+  #   ansible.builtin.shell:
+  #     cmd: pipx inject poetry python3.12

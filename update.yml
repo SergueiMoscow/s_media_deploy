@@ -1,0 +1,24 @@
+- hosts: servers
+  become: yes
+  vars_files:
+    - s_media_secrets.yaml
+
+  tasks:
+  - name: Копирование конфига .env (API)
+    template:
+      src: templates/.env  # путь к шаблону на вашем локальном компьютере
+      dest: /var/www/s_media_api/.env  # путь на удаленном сервере
+
+  - name: Get Poetry virtualenv path
+    shell: ~/.local/bin/poetry env info -p
+    args:
+      chdir: "{{ backend }}"
+    register: poetry_env_path
+    changed_when: false
+
+  - name: Run django migrate (API)
+    community.general.django_manage:
+      command: migrate
+      project_path: "{{ backend }}"
+      settings: "django_app.settings"
+      virtualenv: "{{ poetry_env_path.stdout }}"
