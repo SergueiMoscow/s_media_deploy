@@ -16,3 +16,34 @@
       shell: /bin/bash
       groups: "sudo"
       append: yes
+
+  - name: Create .ssh directory
+    file:
+      path: "/home/{{ uusername }}/.ssh"
+      state: directory
+      mode: '0700'
+      owner: "{{ uusername }}"
+      group: "{{ uusername }}"
+
+  - name: Копирование .ssh/authorized_keys
+    template:
+      src: templates/authorized_keys
+      dest: "/home/{{ uusername }}/.ssh/authorized_keys"
+      owner: "{{ uusername }}"
+      group: "{{ uusername }}"
+      mode: '0600'
+
+  - name: Set ownership for .ssh directory and authorized_keys
+    file:
+      path: "{{ item }}"
+      owner: "{{ uusername }}"
+      group: "{{ uusername }}"
+      mode: '0700'
+    loop:
+      - "/home/{{ uusername }}/.ssh"
+      - "/home/{{ uusername }}/.ssh/authorized_keys"
+
+  - name: Set correct permissions for authorized_keys
+    file:
+      path: "/home/{{ uusername }}/.ssh/authorized_keys"
+      mode: '0600'

@@ -3,3 +3,5 @@ venv/
 readme.sss
 secrets.yaml
 .env
+*.env
+authorized_keys

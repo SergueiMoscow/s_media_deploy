@@ -1,0 +1,14 @@
+# s_media_service.service.j2
+[Unit]
+Description=Uvicorn instance to serve s_media service project
+After=network.target
+
+[Service]
+User=root
+Group=root
+WorkingDirectory=/var/www/s_media_service
+ExecStart={{ poetry_env_path.stdout }}/bin/uvicorn api.app:app --host=0.0.0.0 --port=8080
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

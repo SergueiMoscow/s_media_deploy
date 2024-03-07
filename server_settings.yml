@@ -19,17 +19,17 @@
         - postgresql-contrib
         - nginx
         - curl
-        - python3-poetry
         - libpq-dev
-      state: present
-      update_cache: yes
-
-  - name: Установка psycopg2, net-tools, mc
-    apt:
-      name:
         - python3-psycopg2
         - net-tools
         - mc
+      state: present
+      update_cache: yes
+
+  - name: Установка poetry
+    apt:
+      name:
+        - python3-poetry
       state: present
 
   - name: Изменить метод аутентификации на trust для пользователя postgres

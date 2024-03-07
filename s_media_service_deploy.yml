@@ -1,0 +1,150 @@
+# Перед запуском этого playbook сконфигурить root.ini и no_root.ini на правильный IP.
+# Запустить:
+# ansible-playbook -i root.ini create_user.yml --vault-password-file password -vv
+# Сконфигурить беспарольный доступ пользователя (authorized_keys, chmod, chown)
+# ansible-playbook -i no_root.ini server_settings.yml --vault-password-file password -vv
+# ansible-playbook -i no_root.ini python3_12_1.yml --vault-password-file password -vv
+# Запуск этого playbook:
+# ansible-playbook -i no_root.ini s_media_service_deploy.yml --vault-password-file password -vv
+---
+- hosts: no_root
+  become: true
+
+  vars_files:
+    - s_media_secrets.yaml
+    
+  tasks:
+
+  - name: Установить недостающие пакеты
+    apt:
+      name:
+        - libsqlite3-dev
+
+  - name: Change poetry env path
+    shell:
+      cmd: poetry config virtualenvs.path /var/www/virtualenvs
+    become: true
+    become_user: "{{ uusername }}"
+
+
+  - name: Clone s_media_service repository
+    ansible.builtin.git:
+      repo: https://github.com/SergueiMoscow/s_media_service.git
+      clone: yes
+      dest: /var/www/s_media_service
+
+  - name: Update Poetry to a specific version
+    ansible.builtin.shell:
+      cmd: ~/.local/bin/pipx install poetry==1.7.1 --force
+    become: yes
+    become_user: "{{ uusername }}"
+    # register: poetry_update_result
+
+  # - name: Debug Poetry update output
+  #   ansible.builtin.debug:
+  #     msg: "{{ poetry_update_result.stdout_lines }}"
+
+  # - name: Print environment variables (debug)
+  #   shell: "env"
+  #   register: print_env
+  # - name: Debug environment variables (debug)
+  #   debug:
+  #     var: print_env.stdout_lines
+
+  # - name: Get Poetry virtualenv path
+  #   shell: /usr/local/bin/poetry init
+  #   args:
+  #     chdir: "{{ backend }}"
+
+  # - name: Добавить пользователя сергей в группу www-data
+  #  # Не помогает, каталог от root
+  #   user:
+  #     name: "{{ uusername }}"
+  #     groups: www-data
+  #     append: yes
+  #   become: yes
+
+  - name: Предоставить всем пользователям права на запись в каталог /var/www
+    file:
+      path: /var/www
+      mode: ugo+rwx
+    become: yes
+
+  - name: Set Poetry use python 3.12
+    shell: ~/.local/bin/poetry env use python3.12
+    args:
+      chdir: "{{ service }}"
+    become: yes
+    become_user: "{{ uusername }}"
+
+  - name: Get Poetry virtualenv path
+    shell: ~/.local/bin/poetry env info -p
+    args:
+      chdir: "{{ service }}"
+    register: poetry_env_path
+    changed_when: false
+    become: yes
+    become_user: "{{ uusername }}"
+
+  - name: Install dependencies with Poetry
+    ansible.builtin.shell:
+      cmd: ~/.local/bin/poetry install
+      chdir: "{{ service }}"
+    register: poetry_install_result
+    become: yes
+    become_user: "{{ uusername }}"
+
+  - name: Debug Poetry installation output
+    ansible.builtin.debug:
+      msg: "{{ poetry_install_result.stdout_lines }}"
+    become: yes
+    become_user: "{{ uusername }}"
+
+  - name: Предоставить всем пользователям права на запись в каталог /var/www
+    file:
+      path: /var/www/s_media_service
+      mode: ugo+rwx
+    become: yes
+
+  - name: Копирование конфига .env (API)
+    template:
+      src: templates/service.env
+      dest: /var/www/s_media_service/.env
+    become: yes
+    become_user: "{{ uusername }}"
+
+  - name: Get Poetry virtualenv path
+    shell: ~/.local/bin/poetry env info -p
+    args:
+      chdir: "{{ service }}"
+    register: poetry_env_path
+    changed_when: false
+    become: yes
+    become_user: "{{ uusername }}"
+
+  - name: Run Alembic migrations
+    ansible.builtin.shell:
+      cmd: ~/.local/bin/poetry run alembic upgrade head
+      chdir: "{{ service }}"
+    become: yes
+    become_user: "{{ uusername }}"
+
+  - name: Добавление Uvicorn в systemd
+    template:
+      src: templates/s_media_service.service.j2
+      dest: /etc/systemd/system/s_media_service.service
+    vars:
+      poetry_virtualenv_path: "{{ poetry_env_path.stdout }}"
+    notify: restart uvicorn
+
+  - name: Запуск и активация Uvicorn на загрузку
+    systemd:
+      name: s_media_service
+      state: started
+      enabled: yes
+
+  handlers:
+    - name: restart uvicorn
+      systemd:
+        name: s_media_service
+        state: restarted

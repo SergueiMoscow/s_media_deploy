@@ -38,10 +38,21 @@
     ansible.builtin.pip:
       name: pipx
       executable: pip3
+    become: true
+    become_user: "{{ uusername }}"
+
+  - name: Добавить путь к pipx в PATH
+    lineinfile:
+      path: /home/{{ uusername }}/.bashrc
+      line: 'PATH=$PATH:/home/{{ uusername }}/.local/bin/'
+      state: present
+    become: true
+    become_user: "{{ uusername }}"
 
   - name: Установить poetry с помощью pipx
-    ansible.builtin.shell:
-      cmd: pipx install --python /usr/bin/python3.12 poetry
+    shell: "export PATH=$PATH:/home/{{ uusername }}/.local/bin && pipx install --python /usr/bin/python3.12 poetry"
+    become: true
+    become_user: "{{ uusername }}"
 
   # - name: Установка Python 3.12 для poetry среды
   #   ansible.builtin.shell:
